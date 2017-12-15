@@ -1,5 +1,4 @@
 using Memo
 using Base.Test
 
-# write your own tests here
-@test 1 == 2
+include("tests_from_memoize.jl")

@@ -1,5 +1,7 @@
+__precompile__()
 module Memo
 
-# package code goes here
+include("memoizedfunction.jl")
+include("sugar.jl")
 
 end # module
