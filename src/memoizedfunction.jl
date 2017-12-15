@@ -1,8 +1,8 @@
 export MemoizedFunction
 
-struct MemoizedFunction{F,C} <: Function
+struct MemoizedFunction{F} <: Function
     f::F
-    cache::C
+    cache
 end
 
 makekey(f,args...;kw...) = (f,args,tuple(kw...))

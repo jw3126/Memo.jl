@@ -75,11 +75,24 @@ function get_cached_def(p; f_cached_name::Symbol=nothing, get_cached_name::Expr=
 end
 
 function complete_def(p, cache)
-    # we want deterministic symbols, so that a method rewrite 
+    # TODO
+    # We want that a method rewrite
     # of f triggers method rewrites of f_inner, f_cached
-    # this is important for gc
-    f_inner_name = Symbol("####", p[:name], :_inner) 
+    # this is important for gc.
+    # For this we need deterministic symbols
+    #
+    # OTOH we probably don't want f_cached to be overwritten
+    # when a new memoized method of f is defined.
+    # Also we would like to be able to redefine the type
+    # of cache we use. For this we need new symbols everytime
+
+    DETERMINISTIC_SYMBOLS = true
+    f_inner_name = Symbol("####", p[:name], :_inner)
     f_cached_name = Symbol("####", p[:name], :_cached)
+    if !DETERMINISTIC_SYMBOLS
+        f_inner_name = gensym(f_inner_name)
+        f_cached_name = gensym(f_cached_name)
+    end
     get_cached_name = Expr(Symbol("."), MODULE, QuoteNode(GET_CACHED_NAME))
     cache = :($(MODULE)._makecache($(cache)))
     Expr(:block,
@@ -87,7 +100,7 @@ function complete_def(p, cache)
         f_cached_def(p, cache, f_inner_name=f_inner_name, f_cached_name=f_cached_name),
         f_surface_def(p, f_cached_name=f_cached_name),
         get_cached_def(p, f_cached_name=f_cached_name, get_cached_name=get_cached_name),
-        # f_cached_name
-        p[:name]
+        f_cached_name,
+        p[:name],
     )
 end
