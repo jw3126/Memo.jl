@@ -74,25 +74,31 @@ function get_cached_def(p; f_cached_name::Symbol=nothing, get_cached_name::Expr=
     combinedef(q)
 end
 
-function complete_def(p, cache)
-    # TODO
+function method_symbol(p, suffix="")
+    # HACK
     # We want that a method rewrite
     # of f triggers method rewrites of f_inner, f_cached
     # this is important for gc.
-    # For this we need deterministic symbols
+    # For this we need that each method rewrite of f
+    # produces the same f_inner (resp. f_cached) symbol.
     #
-    # OTOH we probably don't want f_cached to be overwritten
-    # when a new memoized method of f is defined.
-    # Also we would like to be able to redefine the type
-    # of cache we use. For this we need new symbols everytime
+    # OTOH we don't want f_cached to be overwritten
+    # when a new memoized method of f with different signature is defined.
 
-    DETERMINISTIC_SYMBOLS = true
-    f_inner_name = Symbol("####", p[:name], :_inner)
-    f_cached_name = Symbol("####", p[:name], :_cached)
-    if !DETERMINISTIC_SYMBOLS
-        f_inner_name = gensym(f_inner_name)
-        f_cached_name = gensym(f_cached_name)
+    argtypes = map(p[:args]) do arg
+        _,T,_,_ = splitarg(arg)
+        T
     end
+    pieces = ["#", p[:name], argtypes...,
+        "#", p[:whereparams]...,
+        "#", suffix, "#"]
+    Symbol(join(pieces, "#"))
+end
+
+function complete_def(p, cache)
+
+    f_inner_name = method_symbol(p, :inner)
+    f_cached_name = method_symbol(p, :cached)
     get_cached_name = Expr(Symbol("."), MODULE, QuoteNode(GET_CACHED_NAME))
     cache = :($(MODULE)._makecache($(cache)))
     Expr(:block,
