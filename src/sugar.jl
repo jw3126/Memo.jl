@@ -49,18 +49,41 @@ function _makecache(C::Type)
     warn("@memoize $C expr is deprecated. Use @memoize $C() expr instead.")
     C()
 end
-const GET_CACHED_NAME = :get_cached
-@eval function $GET_CACHED_NAME end
-@eval export $GET_CACHED_NAME
 
-function get_cached_def(p; f_cached_name::Symbol=nothing, get_cached_name::Expr=nothing)
-    f_name = p[:name]
-    arg1 = :(::typeof($f_name))
+const GET_CACHED_NAME = :get_memoized
+@eval function $GET_CACHED_NAME end
+
+for fname in [:get_cache, :get_inner]
+    mname = Symbol("@", fname)
+    @eval begin
+        export $mname
+        macro ($fname)(ex0)
+            Base.gen_call_with_extracted_types($(Expr(:quote,fname)), ex0)
+        end
+    end
+end
+
+export get_cache, get_inner
+function get_cache(f, ::Type{T}) where {T <: Tuple}
+    get_memoized(f, T).cache
+end
+function get_inner(f, ::Type{T}) where {T <: Tuple}
+    get_memoized(f, T).f
+end
+
+function argtupletype(p)
     Ts = map(p[:args]) do arg
         name, T, vararg, default = splitarg(arg)
         T
     end
-    arg2 = :(::Type{Tuple{$(Ts...)}})
+    :(Tuple{$(Ts...)})
+end
+
+function get_cached_def(p; f_cached_name::Symbol=nothing, get_cached_name::Expr=nothing)
+    f_name = p[:name]
+    arg1 = :(::typeof($f_name))
+    TT = argtupletype(p)
+    arg2 = :(::Type{<: $TT})
     f_name = p[:name]
     body = f_cached_name
     
@@ -106,7 +129,6 @@ function complete_def(p, cache)
         f_cached_def(p, cache, f_inner_name=f_inner_name, f_cached_name=f_cached_name),
         f_surface_def(p, f_cached_name=f_cached_name),
         get_cached_def(p, f_cached_name=f_cached_name, get_cached_name=get_cached_name),
-        f_cached_name,
         p[:name],
     )
 end
