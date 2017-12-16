@@ -50,8 +50,7 @@ function _makecache(C::Type)
     C()
 end
 
-const GET_CACHED_NAME = :get_memoized
-@eval function $GET_CACHED_NAME end
+function get_memoized end
 
 for fname in [:get_cache, :get_inner]
     mname = Symbol("@", fname)
@@ -79,7 +78,7 @@ function argtupletype(p)
     :(Tuple{$(Ts...)})
 end
 
-function get_cached_def(p; f_cached_name::Symbol=nothing, get_cached_name::Expr=nothing)
+function get_memoized_def(p; f_cached_name::Symbol=nothing, get_memoized_name::Expr=nothing)
     f_name = p[:name]
     arg1 = :(::typeof($f_name))
     TT = argtupletype(p)
@@ -88,7 +87,7 @@ function get_cached_def(p; f_cached_name::Symbol=nothing, get_cached_name::Expr=
     body = f_cached_name
     
     q = Dict(
-        :name => get_cached_name,
+        :name => get_memoized_name,
         :body => f_cached_name,
         :args => [arg1, arg2],
         :whereparams => p[:whereparams],
@@ -122,13 +121,13 @@ function complete_def(p, cache)
 
     f_inner_name = method_symbol(p, :inner)
     f_cached_name = method_symbol(p, :cached)
-    get_cached_name = Expr(Symbol("."), MODULE, QuoteNode(GET_CACHED_NAME))
+    get_memoized_name = Expr(Symbol("."), MODULE, QuoteNode(:get_memoized))
     cache = :($(MODULE)._makecache($(cache)))
     Expr(:block,
         f_inner_def(p, f_inner_name=f_inner_name),
         f_cached_def(p, cache, f_inner_name=f_inner_name, f_cached_name=f_cached_name),
         f_surface_def(p, f_cached_name=f_cached_name),
-        get_cached_def(p, f_cached_name=f_cached_name, get_cached_name=get_cached_name),
+        get_memoized_def(p, f_cached_name=f_cached_name, get_memoized_name=get_memoized_name),
         p[:name],
     )
 end
