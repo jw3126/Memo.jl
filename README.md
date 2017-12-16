@@ -1,5 +1,8 @@
 # Memo
 
+[![Build Status](https://travis-ci.org/jw3126/Memo.jl.svg?branch=master)](https://travis-ci.org/jw3126/Memo.jl)
+[![codecov.io](https://codecov.io/github/jw3126/Memo.jl/coverage.svg?branch=master)](http://codecov.io/github/jw3126/Memo.jl?branch=master)
+
 Function memoization, inspired by [Memoize.jl]("https://github.com/simonster/Memoize.jl") by simonster.
 
 ## Usage
