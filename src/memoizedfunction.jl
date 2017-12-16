@@ -1,5 +1,3 @@
-export MemoizedFunction
-
 struct MemoizedFunction{F} <: Function
     f::F
     cache
