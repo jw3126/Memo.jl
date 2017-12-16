@@ -17,12 +17,42 @@ run = 0
     @test run == 2
 end
 
+cache = Dict()
+run = 0
+# @assert !isdefined(:inspectme)
+@memoize cache function inspectme(x)
+    global run += 1
+    x
+end
+@testset "@get_cache, @recompute" begin
+    @test inspectme(1) == 1
+    @test length(cache) == 1
+    key = first(keys(cache))
+    cache[key] = 42
+    @test inspectme(1) == 42
+    @test (@recompute inspectme(1)) == 1
+    @test inspectme(1) == 1
+    cache2 = @get_cache inspectme(1)
+    @test cache2 === cache
+end
+
+cache = Dict()
+@memoize cache mysqrt(x) = sqrt(x)
+@testset "@get_inner" begin
+    x = rand()
+    (@get_inner mysqrt(1.))(x) === sqrt(x)
+    @test isempty(cache)
+    @test mysqrt(x) === sqrt(x)
+    @test length(cache) == 1
+end
+
 run = 0
 # method local cache tests
 @memoize function f(x::Int)
     global run += 1
     2x
 end
+
 @test f(1) === 2
 @test run == 1
 @memoize function f(x::Float64)

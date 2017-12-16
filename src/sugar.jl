@@ -1,4 +1,6 @@
 export @memoize
+export get_cache, get_inner, recompute
+export @get_cache, @get_inner, @recompute
 const MODULE = Memo
 using MacroTools: combinedef, splitdef, combinearg, splitarg
 
@@ -52,22 +54,30 @@ end
 
 function get_memoized end
 
-for fname in [:get_cache, :get_inner]
-    mname = Symbol("@", fname)
-    @eval begin
-        export $mname
-        macro ($fname)(ex0)
-            Base.gen_call_with_extracted_types($(Expr(:quote,fname)), ex0)
-        end
-    end
-end
-
-export get_cache, get_inner
 function get_cache(f, ::Type{T}) where {T <: Tuple}
     get_memoized(f, T).cache
 end
 function get_inner(f, ::Type{T}) where {T <: Tuple}
     get_memoized(f, T).f
+end
+function recompute(f, args...; kw...)
+    cache = get_cache(f, args...;kw...)
+    f_inner = get_inner(f, args...;kw...)
+    key = makekey(f_inner, args...;kw...)
+    if haskey(cache, key)
+        delete!(cache, key)
+    end
+    f(args...; kw...)
+end
+
+for inspect ∈ [:get_inner, :get_cache, :get_memoized]
+    @eval ($inspect)(f, args...;kw...) = ($inspect)(f, Base.typesof(args...))
+end
+for f ∈ [:get_inner, :get_cache, :recompute]
+    @eval macro $f(ex)
+        @assert Meta.isexpr(ex, :call)
+        Expr(:call, $f, map(esc,ex.args)...)
+    end
 end
 
 function argtupletype(p)
