@@ -1,6 +1,5 @@
 export @memoize
-export get_cache, get_inner, recompute
-export @get_cache, @get_inner, @recompute
+export @get_cache, @get_inner, @recompute, @get_key
 const MODULE = Memo
 using MacroTools: combinedef, splitdef, combinearg, splitarg
 
@@ -18,11 +17,11 @@ function f_inner_def(p; f_inner_name::Symbol=nothing)
 end
 
 function f_surface_def(p; f_cached_name::Symbol=nothing)
-    callargs = map(p[:args]) do arg
+    callargs = map(get(p, :args, [])) do arg
         name, T, variadic, default = splitarg(arg)
         variadic ? Expr(Symbol("..."), name) : name 
     end
-    callkwargs = map(p[:kwargs]) do kwarg
+    callkwargs = map(get(p, :kwargs,[])) do kwarg
         name, T, variadic, default = splitarg(kwarg)
         variadic ? Expr(Symbol("..."), name) : Expr(:kw, name, name)
     end
@@ -54,54 +53,39 @@ end
 
 function get_memoized end
 
-function get_cache(f, ::Type{T}) where {T <: Tuple}
-    get_memoized(f, T).cache
+function get_cache(f, args...;kw...)
+    get_memoized(f, args...;kw...).cache
 end
-function get_inner(f, ::Type{T}) where {T <: Tuple}
-    get_memoized(f, T).f
+function get_inner(f, args...;kw...)
+    get_memoized(f, args...;kw...).f
+end
+function get_key(f, args...;kw...)
+    f_inner = get_inner(f,args...;kw...)
+    makekey(f_inner, args...;kw...)
 end
 function recompute(f, args...; kw...)
     cache = get_cache(f, args...;kw...)
-    f_inner = get_inner(f, args...;kw...)
-    key = makekey(f_inner, args...;kw...)
+    key = get_key(f, args...; kw...)
     if haskey(cache, key)
         delete!(cache, key)
     end
     f(args...; kw...)
 end
 
-for inspect ∈ [:get_inner, :get_cache, :get_memoized]
-    @eval ($inspect)(f, args...;kw...) = ($inspect)(f, Base.typesof(args...))
-end
-for f ∈ [:get_inner, :get_cache, :recompute]
+for f ∈ [:get_inner, :get_cache, :recompute, :get_key]
     @eval macro $f(ex)
         @assert Meta.isexpr(ex, :call)
         Expr(:call, $f, map(esc,ex.args)...)
     end
 end
 
-function argtupletype(p)
-    Ts = map(p[:args]) do arg
-        name, T, vararg, default = splitarg(arg)
-        T
-    end
-    :(Tuple{$(Ts...)})
-end
-
 function get_memoized_def(p; f_cached_name::Symbol=nothing, get_memoized_name::Expr=nothing)
     f_name = p[:name]
-    arg1 = :(::typeof($f_name))
-    TT = argtupletype(p)
-    arg2 = :(::Type{<: $TT})
-    f_name = p[:name]
-    body = f_cached_name
-    
-    q = Dict(
-        :name => get_memoized_name,
-        :body => f_cached_name,
-        :args => [arg1, arg2],
-        :whereparams => p[:whereparams],
-        :kwargs => []
+    args = [:(::typeof($f_name)); p[:args]]
+    q = patch(p,
+        name = get_memoized_name,
+        body = f_cached_name,
+        args = args
     )
     combinedef(q)
 end

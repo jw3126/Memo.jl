@@ -27,7 +27,7 @@ end
 @testset "@get_cache, @recompute" begin
     @test inspectme(1) == 1
     @test length(cache) == 1
-    key = first(keys(cache))
+    key = @get_key inspectme(1)
     cache[key] = 42
     @test inspectme(1) == 42
     @test (@recompute inspectme(1)) == 1
