@@ -3,7 +3,10 @@ export @get_cache, @get_inner, @recompute, @get_key
 const MODULE = Memo
 using MacroTools: combinedef, splitdef, combinearg, splitarg
 
-patch(d; kw...) = merge(d, Dict(kw))
+if !isdefined(:pairs)
+    pairs(kw) = kw
+end
+patch(d; kw...) = merge(d, Dict(pairs(kw)))
 
 function f_cached_def(p, cache; f_inner_name::Symbol=nothing, f_cached_name::Symbol=nothing)
     :(const $f_cached_name = $MODULE.MemoizedFunction($f_inner_name, $cache))
